@@ -1,34 +1,35 @@
-const osc = new OSC()
-osc.open()
-
 let devices = {}
 
-osc.on('/lidar/register', message => {
-  const serial = message.args[0]
-  console.log(`device ${serial} registering.`)
-  devices[serial] = Object.assign({
-    distances: { current: [], prev: [] }
-  }, devices[serial])
-  console.log(devices)
+const ws = new WebSocket('ws://127.0.0.1:8080')
 
-  devices[serial].handler = osc.on(`/lidar/scan/${serial}`, message => {
-    devices[serial].distances.prev = devices[serial].distances.current || []
-    devices[serial].distances.current = message.args
-  })
-})
-/* TODO:
-  find a way to safely receive '/scan' messages for non-registered devices
-  (do some kind of auto-registering)
-*/
-
-osc.on('/lidar/byebye', message => {
-  const serial = message.args[0]
-  console.log(`bye bye ${serial}`)
-
-  if (devices[serial].handler) {
-    osc.off(`/lidar/scan/${serial}`, devices[serial].handler)
+ws.onmessage = function (event) {
+  if (event.data.indexOf('lidar-register') > -1) {
+    const serial = event.data.split('/')[1]
+    onLidarRegister(serial)
+  } else if (event.data.indexOf('server-success') > -1) {
+    console.log('server success')
+    ws.send('needs-lidar-registration')
+  } else {
+    try {
+      const data = JSON.parse(event.data)
+      data && onLidarData(data)
+    } catch (ignore) { console.warn(ignore) }
   }
-})
+}
+
+function onLidarRegister (serial) {
+  console.log('lidar registered with serial', serial)
+  devices[serial] = Object.assign({
+    distances: []
+  }, devices[serial], {})
+}
+
+function onLidarData (data) {
+  // console.log(data)
+  if (data.quality) {
+    devices[data.serial].distances[Math.floor(data.angle)] = data.distance
+  }
+}
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
@@ -46,7 +47,7 @@ function draw() {
 
     fill(255, 255, 255)
 
-    devices[serial].distances.current.forEach((distance, index) => {
+    devices[serial].distances.forEach((distance, index) => {
       maxDistance = Math.max(distance, maxDistance)
 
       radians = (index * rad)

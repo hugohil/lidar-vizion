@@ -1,6 +1,6 @@
 {
-  "name": "lidar-osc-viz",
-  "productName": "lidar-osc-viz",
+  "name": "lidar-vizion",
+  "productName": "lidar-vizion",
   "version": "1.0.0",
   "description": "My Electron application description",
   "main": "src/main.js",
@@ -46,7 +46,9 @@
   },
   "dependencies": {
     "electron-squirrel-startup": "^1.0.0",
-    "osc-js": "^2.1.2"
+    "isomorphic-ws": "^4.0.1",
+    "osc-js": "^2.1.2",
+    "ws": "^7.4.2"
   },
   "devDependencies": {
     "@electron-forge/cli": "^6.0.0-beta.54",
