@@ -41,7 +41,6 @@ function onLidarRegister (serial) {
   })
 
   devices[serial].gui.addObject(devices[serial].params);
-  console.log(devices[serial])
 }
 
 function onLidarData (data) {
