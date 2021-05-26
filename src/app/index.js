@@ -19,7 +19,7 @@ ws.onmessage = function (event) {
 
 function onLidarRegister (serial) {
   console.log('lidar registered with serial', serial)
-  devices[serial] = Object.assign({
+  devices[serial] = Object.assign({}, {
     gui: createGui(serial),
     params: {
       offsetX: 0,
@@ -38,7 +38,7 @@ function onLidarRegister (serial) {
       color: [255, 255, 255]
     },
     distances: []
-  }, devices[serial], {})
+  })
 
   devices[serial].gui.addObject(devices[serial].params);
   console.log(devices[serial])
