@@ -20,8 +20,28 @@ ws.onmessage = function (event) {
 function onLidarRegister (serial) {
   console.log('lidar registered with serial', serial)
   devices[serial] = Object.assign({
+    gui: createGui(serial),
+    params: {
+      offsetX: 0,
+      offsetXMin: -(windowWidth * .5),
+      offsetXMax: (windowWidth * .5),
+      offsetY: 0,
+      offsetYMin: -(windowHeight * .5),
+      offsetYMax: (windowHeight * .5),
+      scale: 1,
+      scaleStep: 0.01,
+      scaleMin: 0.01,
+      scaleMax: 3,
+      angle: 0,
+      angleMin: -360,
+      angleMax: 360,
+      color: [255, 255, 255]
+    },
     distances: []
   }, devices[serial], {})
+
+  devices[serial].gui.addObject(devices[serial].params);
+  console.log(devices[serial])
 }
 
 function onLidarData (data) {
@@ -39,29 +59,38 @@ let maxDistance = 5000
 const rad = (Math.PI / 180)
 
 function draw() {
-  background(120);
   noStroke()
-
+  background(0);
+  
+  fill(255, 255, 255)
   for (serial in devices) {
     let x, y = 0
 
-    fill(255, 255, 255)
+    const d = devices[serial]
 
-    devices[serial].distances.forEach((distance, index) => {
+    push()
+    fill(d.params.color)
+    const offsetX = (d.params.offsetX + (width * 0.5))
+    const offsetY = (d.params.offsetY + (height * 0.5))
+    translate(offsetX, offsetY)
+    rotate(d.params.angle * rad)
+    scale(d.params.scale)
+    
+    d.distances.forEach((distance, index) => {
+      radians = (index * rad)
       maxDistance = Math.max(distance, maxDistance)
 
-      radians = (index * rad)
       x = (distance * cos(radians))
-      x = ((width * 0.5) + (x / maxDistance * height * 0.5))
-      // x = map(Math.abs(x), 0, maxDistance, 0, width) + (width * .5)
-      
+      x = map(x, 0, maxDistance, 0, width)
+
       y = (distance * sin(radians))
-      y = ((height * 0.5) + (y / maxDistance * height * 0.5))
-      // y = map(Math.abs(y), 0, maxDistance, 0, height) + (height * .5)
+      y = map(y, 0, maxDistance, 0, height)
 
       ellipse(x, y, 5, 5)
     })
+
     fill(255, 0, 0)
-    ellipse((width * 0.5), (height * 0.5), 5, 5)
+    ellipse(0, 0, 5, 5)
+    pop()
   }
 }
