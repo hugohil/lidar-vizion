@@ -125,5 +125,5 @@ function draw() {
   vida.drawBlobs(width/2, height/2, width/2, height/2)
 
   fill(0, 255, 0)
-  text(getFrameRate(), 10, 500)
+  text(`${getFrameRate().toFixed(2)} FPS`, (width - 70), 25)
 }
