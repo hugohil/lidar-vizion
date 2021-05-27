@@ -17,17 +17,19 @@ ws.onmessage = function (event) {
   }
 }
 
+const lidarImageDownsample = 0.25
+
 function onLidarRegister (serial) {
   console.log('lidar registered with serial', serial)
   devices[serial] = Object.assign({}, {
     gui: createGui(serial),
     params: {
       offsetX: 0,
-      offsetXMin: -(windowWidth * .25),
-      offsetXMax: (windowWidth * .25),
+      offsetXMin: -(windowWidth * lidarImageDownsample),
+      offsetXMax: (windowWidth * lidarImageDownsample),
       offsetY: 0,
-      offsetYMin: -(windowHeight * .25),
-      offsetYMax: (windowHeight * .25),
+      offsetYMin: -(windowHeight * lidarImageDownsample),
+      offsetYMax: (windowHeight * lidarImageDownsample),
       scale: 1,
       scaleStep: 0.01,
       scaleMin: 0.01,
@@ -56,7 +58,7 @@ let pg = null
 function setup() {
   createCanvas(windowWidth, windowHeight)
 
-  pg = createGraphics((windowWidth * 0.25), (windowHeight * 0.25))
+  pg = createGraphics((windowWidth * lidarImageDownsample), (windowHeight * lidarImageDownsample))
 
   vida = new Vida(this)
   vida.handleBlobsFlag = true
@@ -74,11 +76,9 @@ let maxDistance = 5000
 const rad = (Math.PI / 180)
 
 function draw() {
-  // background('rgba(0,0,0, 0.25)');
   background(0);
 
   pg.noStroke()
-  // pg.background('rgba(0,0,0, 0.25)');
   pg.background(0);
   
   pg.fill(255, 255, 255)
