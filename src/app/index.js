@@ -95,9 +95,7 @@ function setup() {
 let maxDistance = 5000
 const rad = (Math.PI / 180)
 
-function draw() {
-  background(0);
-
+function drawPoints () {
   pg.noStroke()
   pg.background(0);
   
@@ -127,16 +125,34 @@ function draw() {
 
       pg.ellipse(x, y, 2, 2)
     })
-
-    fill(255, 0, 0)
-    ellipse(0, 0, 5, 5)
     pg.pop()
   }
+}
+
+function drawCenters () {
+  fill(255, 0, 0)
+  for (ID in devices) {
+    const d = devices[ID]
+
+    push()
+    const offsetX = (d.params.offsetX + (width * 0.5))
+    const offsetY = (d.params.offsetY + (height * 0.5))
+    translate(offsetX, offsetY)
+    ellipse(0, 0, 10)
+    pop()
+  }
+}
+
+function draw() {
+  background(0);
+
+  drawPoints()
 
   vida.update(pg)
-
   // image(pg, 0, 0, width, height)
   image(vida.differenceImage, 0, 0, width, height)
+
+  drawCenters()
 
   stroke(255, 0, 0)
   noFill()
