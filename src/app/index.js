@@ -4,8 +4,8 @@ const ws = new WebSocket('ws://127.0.0.1:8080')
 
 ws.onmessage = function (event) {
   if (event.data.indexOf('lidar-register') > -1) {
-    const serial = event.data.split('/')[1]
-    onLidarRegister(serial)
+    const ID = event.data.split('/')[1]
+    onLidarRegister(ID)
   } else if (event.data.indexOf('server-success') > -1) {
     console.log('server success')
     ws.send('needs-lidar-registration')
@@ -19,10 +19,10 @@ ws.onmessage = function (event) {
 
 const lidarImageDownsample = 0.25
 
-function onLidarRegister (serial) {
-  console.log('lidar registered with serial', serial)
-  devices[serial] = Object.assign({}, {
-    gui: createGui(serial),
+function onLidarRegister (ID) {
+  console.log('lidar registered with ID', ID)
+  devices[ID] = Object.assign({}, {
+    gui: createGui(ID),
     params: {
       offsetX: 0,
       offsetXMin: -(windowWidth * lidarImageDownsample),
@@ -42,13 +42,13 @@ function onLidarRegister (serial) {
     distances: []
   })
 
-  devices[serial].gui.addObject(devices[serial].params);
+  devices[ID].gui.addObject(devices[ID].params);
 }
 
 function onLidarData (data) {
   // console.log(data)
   if (data.quality) {
-    devices[data.serial].distances[Math.floor(data.angle)] = data.distance
+    devices[data.ID].distances[Math.floor(data.angle)] = data.distance
   }
 }
 
@@ -102,10 +102,10 @@ function draw() {
   pg.background(0);
   
   pg.fill(255, 255, 255)
-  for (serial in devices) {
+  for (ID in devices) {
     let x, y = 0
 
-    const d = devices[serial]
+    const d = devices[ID]
 
     pg.push()
     pg.fill(d.params.color)
