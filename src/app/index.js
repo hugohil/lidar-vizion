@@ -52,6 +52,15 @@ function onLidarData (data) {
   }
 }
 
+function onZoneActivated (zone) {
+  // console.log(`zone ${zone.id} has ${zone.isMovementDetectedFlag ? '' : 'no more'} movement.`)
+  const event = {
+    type: 'zone-activity',
+    zone
+  }
+  ws.send(JSON.stringify(event))
+}
+
 let vida = null
 let pg = null
 
@@ -61,15 +70,26 @@ function setup() {
   pg = createGraphics((windowWidth * lidarImageDownsample), (windowHeight * lidarImageDownsample))
 
   vida = new Vida(this)
-  vida.handleBlobsFlag = true
-  vida.trackBlobsFlag = true
-  vida.approximateBlobPolygonsFlag = true
-  vida.pointsPerApproximatedBlobPolygon = 5
+
   vida.progressiveBackgroundFlag = true
   vida.imageFilterFeedback = 0.9 // probably best to stay between .9 and .98
-  vida.imageFilterThreshold = 0.1
-  vida.normMinBlobArea = 0.0002
-  vida.normMaxBlobArea = 0.5
+  vida.imageFilterThreshold = 0.2
+
+  vida.handleActiveZonesFlag = true
+  vida.setActiveZonesNormFillThreshold(0.02)
+
+  // addActiveZone(identifier, normX, normY, normW, normH, onChangeCallbackFunction)
+  vida.addActiveZone(0, 0, 0, 0.2, 1, onZoneActivated)
+  vida.addActiveZone(1, 0.8, 0, 0.2, 1, onZoneActivated)
+  vida.addActiveZone(2, 0, 0, 1, 0.2, onZoneActivated)
+
+  // vida.handleBlobsFlag = true
+  // vida.trackBlobsFlag = true
+  // vida.rejectBlobsMethod = vida.REJECT_OUTER_BLOBS
+  // vida.approximateBlobPolygonsFlag = true
+  // vida.pointsPerApproximatedBlobPolygon = 5
+  // vida.normMinBlobArea = 0.0002
+  // vida.normMaxBlobArea = 0.5
 }
 
 let maxDistance = 5000
@@ -105,25 +125,45 @@ function draw() {
       y = (distance * sin(radians))
       y = map(y, 0, maxDistance, 0, pg.height)
 
-      pg.ellipse(x, y, 5, 5)
+      pg.ellipse(x, y, 2, 2)
     })
 
-    pg.fill(255, 0, 0)
-    pg.ellipse(0, 0, 5, 5)
+    fill(255, 0, 0)
+    ellipse(0, 0, 5, 5)
     pg.pop()
   }
 
   vida.update(pg)
 
   // image(pg, 0, 0, width, height)
+  image(vida.differenceImage, 0, 0, width, height)
+
+  stroke(255, 0, 0)
+  noFill()
+  for (let i = 0; i < vida.activeZones.length; i++) {
+    const az = vida.activeZones[i]
+    const x = az.normX * width
+    const y = az.normY * height
+    const w = az.normW * width
+    const h = az.normH * height
+
+    if (az.isMovementDetectedFlag) {
+      fill('rgba(255, 0, 0, 0.2)')
+    } else {
+      noFill()
+    }
+    rect(x, y, w, h)
+  }
+
   // vida.drawBlobs(0, 0, width, height)
 
-  image(pg, 0, 0, width/2, height/2)
-  image(vida.backgroundImage, width/2, 0, width/2, height/2)
-  image(vida.differenceImage, 0, height/2, width/2, height/2)
-  image(vida.thresholdImage, width/2, height/2, width/2, height/2)
-  vida.drawBlobs(width/2, height/2, width/2, height/2)
+  // image(pg, 0, 0, width/2, height/2)
+  // image(vida.backgroundImage, width/2, 0, width/2, height/2)
+  // image(vida.differenceImage, 0, height/2, width/2, height/2)
+  // image(vida.thresholdImage, width/2, height/2, width/2, height/2)
+  // vida.drawBlobs(width/2, height/2, width/2, height/2)
 
+  noStroke()
   fill(0, 255, 0)
   text(`${getFrameRate().toFixed(2)} FPS`, (width - 70), 25)
 }
