@@ -1,23 +1,18 @@
 const { app, BrowserWindow } = require('electron')
 const path = require('path')
 
-const WebSocket = require('ws')
+const OSC = require('osc-js')
 
-const wss = new WebSocket.Server({ port: 8080 })
+const config = {
+  udpServer: {
+    host: 'localhost',
+    port: 41234,
+    exclusive: false
+  }
+}
+const osc = new OSC({ plugin: new OSC.BridgePlugin(config) })
 
-wss.on('connection', function connection (ws, req, client) {
-  console.log('new connection')
-
-  ws.send('server-success')
-
-  ws.on('message', (data) => {
-    wss.clients.forEach(function each(client) {
-      if (client !== ws && client.readyState === WebSocket.OPEN) {
-        client.send(data);
-      }
-    })
-  })
-})
+osc.open()
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) { // eslint-disable-line global-require
@@ -26,10 +21,11 @@ if (require('electron-squirrel-startup')) { // eslint-disable-line global-requir
 
 const createWindow = () => {
   const ratio = 1 // square room
-  const height = 960
+  const height = 980
 
   const mainWindow = new BrowserWindow({
     height,
+    resizable: false,
     width: (height * ratio)
   })
 

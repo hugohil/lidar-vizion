@@ -1,27 +1,22 @@
 let devices = {}
 
-const ws = new WebSocket('ws://127.0.0.1:8080')
+const osc = new OSC()
+osc.open()
 
-ws.onmessage = function (event) {
-  if (event.data.indexOf('lidar-register') > -1) {
-    const ID = event.data.split('/')[1]
+osc.on('/lidar', (message, rinfo) => {
+  const ID = message.args[0]
+
+  if (!devices[ID]) {
     onLidarRegister(ID)
-  } else if (event.data.indexOf('server-success') > -1) {
-    console.log('server success')
-    ws.send('needs-lidar-registration')
-  } else {
-    try {
-      const data = JSON.parse(event.data)
-      data && onLidarData(data)
-    } catch (ignore) { console.warn(ignore) }
   }
-}
+  onLidarData(message)
+})
 
 const lidarImageDownsample = 0.25
 
 function onLidarRegister (ID) {
   console.log('lidar registered with ID', ID)
-  devices[ID] = Object.assign({}, {
+  devices[ID] = Object.assign({}, {
     gui: createGui(ID),
     params: {
       offsetX: 0,
@@ -39,17 +34,19 @@ function onLidarRegister (ID) {
       angleMax: 360,
       color: [255, 255, 255]
     },
-    distances: []
+    distances: new Array(360)
   })
 
-  devices[ID].gui.addObject(devices[ID].params);
+  devices[ID].gui.addObject(devices[ID].params)
+  // console.log(devices[ID].gui)
+
+  const guiOffset = 111 * (Object.keys(devices).length + 1)
+  devices[ID].gui.setPosition(guiOffset, 20)
 }
 
 function onLidarData (data) {
-  // console.log(data)
-  if (data.quality) {
-    devices[data.ID].distances[Math.floor(data.angle)] = data.distance
-  }
+  const [ID, distance, angle] = data.args
+  devices[ID].distances[Math.floor(angle)] = distance
 }
 
 function onZoneActivated (zone) {
@@ -58,11 +55,35 @@ function onZoneActivated (zone) {
     type: 'zone-activity',
     zone
   }
-  ws.send(JSON.stringify(event))
+  console.log(event)
+  osc.send(new OSC.Message(`/zone-activity/${zone.id}`))
 }
 
 let vida = null
 let pg = null
+let appGUI = null
+let zoneGUI = null
+
+const trackParams = {
+  track: true,
+  progressiveBackground: true,
+  imageFilterFeedback: 0.96,
+  imageFilterFeedbackStep: 0.001,
+  imageFilterFeedbackMin: 0.9,
+  imageFilterFeedbackMax: 0.999,
+  imageFilterThreshold: 0.333,
+  imageFilterThresholdStep: 0.001,
+  imageFilterThresholdMin: 0.001,
+  imageFilterThresholdMax: 0.999,
+  showCenters: true
+}
+const zoneTrackingParams = {
+  trackActiveZones: true,
+  threshold: 0.125,
+  thresholdStep: 0.001,
+  thresholdMin: 0.001,
+  thresholdMax: 1
+}
 
 function setup() {
   createCanvas(windowWidth, windowHeight)
@@ -71,11 +92,11 @@ function setup() {
 
   vida = new Vida(this)
 
-  vida.progressiveBackgroundFlag = true
+  vida.progressiveBackgroundFlag = false
   vida.imageFilterFeedback = 0.9 // probably best to stay between .9 and .98
   vida.imageFilterThreshold = 0.2
 
-  vida.handleActiveZonesFlag = true
+  vida.handleActiveZonesFlag = false
   vida.setActiveZonesNormFillThreshold(0.02)
 
   // addActiveZone(identifier, normX, normY, normW, normH, onChangeCallbackFunction)
@@ -83,13 +104,20 @@ function setup() {
   vida.addActiveZone(1, 0.8, 0, 0.2, 1, onZoneActivated)
   vida.addActiveZone(2, 0, 0, 1, 0.2, onZoneActivated)
 
-  // vida.handleBlobsFlag = true
+  // vida.handleBlobsFlag = false
   // vida.trackBlobsFlag = true
   // vida.rejectBlobsMethod = vida.REJECT_OUTER_BLOBS
   // vida.approximateBlobPolygonsFlag = true
   // vida.pointsPerApproximatedBlobPolygon = 5
   // vida.normMinBlobArea = 0.0002
   // vida.normMaxBlobArea = 0.5
+
+  appGUI = createGui('app')
+  appGUI.addObject(trackParams)
+
+  zoneGUI = createGui('zone')
+  zoneGUI.addObject(zoneTrackingParams)
+  zoneGUI.setPosition(20, 300)
 }
 
 let maxDistance = 5000
@@ -148,27 +176,43 @@ function draw() {
 
   drawPoints()
 
-  vida.update(pg)
-  // image(pg, 0, 0, width, height)
-  image(vida.differenceImage, 0, 0, width, height)
+  if (trackParams.track) {
+    vida.update(pg)
+  }
+  if (trackParams.progressiveBackground) {
+    image(vida.differenceImage, 0, 0, width, height)
+  } else {
+    image(pg, 0, 0, width, height)
+  }
 
-  drawCenters()
+  vida.handleActiveZonesFlag = zoneTrackingParams.trackActiveZones
+  vida.setActiveZonesNormFillThreshold(zoneTrackingParams.threshold)
+
+  vida.progressiveBackgroundFlag = trackParams.progressiveBackground
+  vida.imageFilterFeedback = trackParams.imageFilterFeedback // probably best to stay between .9 and .98
+  vida.imageFilterThreshold = trackParams.imageFilterThreshold
+
+  trackParams.showCenters && drawCenters()
 
   stroke(255, 0, 0)
   noFill()
   for (let i = 0; i < vida.activeZones.length; i++) {
-    const az = vida.activeZones[i]
-    const x = az.normX * width
-    const y = az.normY * height
-    const w = az.normW * width
-    const h = az.normH * height
+    if (trackParams.track) {
+      const az = vida.activeZones[i]
+      const x = az.normX * width
+      const y = az.normY * height
+      const w = az.normW * width
+      const h = az.normH * height
 
-    if (az.isMovementDetectedFlag) {
-      fill('rgba(255, 0, 0, 0.2)')
+      if (az.isMovementDetectedFlag) {
+        fill('rgba(255, 0, 0, 0.2)')
+      } else {
+        noFill()
+      }
+      rect(x, y, w, h)
     } else {
-      noFill()
+      // vida.activeZones[i]
     }
-    rect(x, y, w, h)
   }
 
   // vida.drawBlobs(0, 0, width, height)
