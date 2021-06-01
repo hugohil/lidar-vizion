@@ -112,6 +112,10 @@
     // proxy all functions of quicksettings
     this.prototype = qs;
 
+    this.addButton = function(title, callback) {
+      qs.addButton(title, callback);
+    }
+
     // addGlobals(global1, global2, ...) to add the selected globals
     this.addGlobals = function() {
       qs.bindGlobals(arguments);
