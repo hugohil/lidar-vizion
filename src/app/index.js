@@ -13,6 +13,7 @@ osc.on('/lidar', (message, rinfo) => {
 })
 
 const lidarImageDownsample = 0.25
+const rescaleFactor = (1 / lidarImageDownsample)
 
 function onLidarRegister (ID) {
   let memory = localStorage.getItem(ID)
@@ -57,8 +58,13 @@ function onLidarRegister (ID) {
 }
 
 function onLidarData (data) {
-  const [ID, distance, angle] = data.args
-  devices[ID].distances[Math.floor(angle)] = distance
+  const ID = data.args.shift()
+  // console.log(data.args)
+  data.args.forEach((value, index) => {
+    if (index % 2) {
+      devices[ID].distances[Math.floor(value)] = [data.args[index - 1], value]
+    }
+  })
 }
 
 function onZoneActivated (zone) {
@@ -67,7 +73,7 @@ function onZoneActivated (zone) {
     type: 'zone-activity',
     zone
   }
-  console.log(event)
+  // console.log(event)
   osc.send(new OSC.Message(`/zone-activity/${zone.id}`))
 }
 
@@ -104,8 +110,6 @@ function setup() {
 
   appGUI = createGui('track')
   appGUI.addObject(trackParams)
-
-  frameRate(30);
 }
 
 let maxDistance = 5000
@@ -129,8 +133,8 @@ function drawPoints () {
     pg.rotate(d.params.angle * rad)
     pg.scale(d.params.scale)
     
-    d.distances.forEach((distance, index) => {
-      radians = (index * rad)
+    d.distances.forEach(([distance, angle], index) => {
+      radians = (angle * rad)
       maxDistance = Math.max(distance, maxDistance)
 
       x = (distance * cos(radians))
@@ -151,9 +155,11 @@ function drawCenters () {
     const d = devices[ID]
 
     push()
-    const offsetX = (d.params.offsetX + (width * 0.5))
-    const offsetY = (d.params.offsetY + (height * 0.5))
+    const offsetX = ((d.params.offsetX * rescaleFactor) + (width * 0.5))
+    const offsetY = ((d.params.offsetY * rescaleFactor) + (height * 0.5))
     translate(offsetX, offsetY)
+    rotate(d.params.angle * rad)
+    scale(d.params.scale)
     ellipse(0, 0, 10)
     pop()
   }
@@ -163,11 +169,10 @@ function draw() {
   background(0);
 
   drawPoints()
-  trackParams.showCenters && drawCenters()
 
   if (trackParams.track) {
     vida.setActiveZonesNormFillThreshold(trackParams.threshold)
-    trackParams.track && vida.update(pg)
+    vida.update(pg)
     image(vida.differenceImage, 0, 0, width, height)
   } else {
     image(pg, 0, 0, width, height)
@@ -193,6 +198,8 @@ function draw() {
       // vida.activeZones[i]
     }
   }
+
+  trackParams.showCenters && drawCenters()
 
   noStroke()
   fill(0, 255, 0)
