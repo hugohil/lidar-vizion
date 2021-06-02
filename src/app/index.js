@@ -12,7 +12,7 @@ osc.on('/lidar', (message, rinfo) => {
   onLidarData(message)
 })
 
-const lidarImageDownsample = 0.25
+const lidarImageDownsample = 0.5
 const rescaleFactor = (1 / lidarImageDownsample)
 
 function onLidarRegister (ID) {
@@ -59,12 +59,10 @@ function onLidarRegister (ID) {
 
 function onLidarData (data) {
   const ID = data.args.shift()
-  // console.log(data.args)
-  data.args.forEach((value, index) => {
-    if (index % 2) {
-      devices[ID].distances[Math.floor(value)] = [data.args[index - 1], value]
-    }
-  })
+  for (let i = 1; i < data.args.length; i += 2) {
+    const angle = data.args[i]
+    devices[ID].distances[Math.floor(angle)] = [data.args[(i - 1)], angle]
+  }
 }
 
 function onZoneActivated (zone) {
