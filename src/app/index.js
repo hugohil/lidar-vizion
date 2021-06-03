@@ -65,8 +65,9 @@ function onLidarRegister (ID) {
     }))
   })
 
-  const guiOffset = 111 * (Object.keys(devices).length + 1)
-  devices[ID].gui.setPosition(guiOffset, 20)
+  const guiOffsetY = 90 * (Object.keys(devices).length + 1)
+  const guiOffsetX = 20 * Object.keys(devices).length
+  devices[ID].gui.setPosition(guiOffsetX, guiOffsetY)
 }
 
 function onLidarData (data) {
@@ -139,7 +140,7 @@ function setup() {
     vida.activeZones[i].params = params
     zgui = createGui('zone-' + i)
     zgui.addObject(vida.activeZones[i].params)
-    zgui.setPosition(20, (i * 50))
+    zgui.setPosition(250 + (i * 50), 20 + (i * 25))
 
     console.log(vida.activeZones[i])
   }
