@@ -1,7 +1,19 @@
 const devices = {}
 
+const throttle = (func, delay) => {
+  let toThrottle = false
+  return function() {
+    if(!toThrottle) {
+      toThrottle = true
+      func.apply(this,arguments)
+      setTimeout(() => {
+        toThrottle = false
+      }, delay)
+    }
+  }
+}
+
 const osc = new OSC()
-osc.open()
 
 osc.on('/lidar', (message, rinfo) => {
   const ID = message.args[0]
@@ -72,7 +84,7 @@ function onZoneActivated (zone) {
     zone
   }
   // console.log(event)
-  osc.send(new OSC.Message(`/zone-activity/${zone.id}`))
+  osc.send(new OSC.Message('/zone-activity', zone.id))
 }
 
 let vida = null
@@ -80,13 +92,15 @@ let pg = null
 let appGUI = null
 
 const trackParams = {
-  track: true,
+  track: false,
   threshold: 0.2,
   thresholdStep: 0.001,
   thresholdMin: 0.001,
   thresholdMax: 1,
   showCenters: false
 }
+
+const onZoneActivatedThrottled = throttle(onZoneActivated, 2000)
 
 function setup() {
   createCanvas(windowWidth, windowHeight)
@@ -102,12 +116,14 @@ function setup() {
   vida.handleActiveZonesFlag = true
   vida.setActiveZonesNormFillThreshold(trackParams.threshold)
 
-  vida.addActiveZone(0, 0, 0, 0.2, 1, onZoneActivated)
-  vida.addActiveZone(1, 0.8, 0, 0.2, 1, onZoneActivated)
-  vida.addActiveZone(2, 0, 0, 1, 0.2, onZoneActivated)
+  vida.addActiveZone(0, 0, 0, 0.2, 1, onZoneActivatedThrottled) // zone 0 - left
+  vida.addActiveZone(1, 0.8, 0, 0.2, 1, onZoneActivatedThrottled) // zone 1 - center
+  vida.addActiveZone(2, 0, 0, 1, 0.2, onZoneActivatedThrottled) // zone 2 - right
 
   appGUI = createGui('track')
   appGUI.addObject(trackParams)
+
+  osc.open()
 }
 
 let maxDistance = 5000
@@ -116,7 +132,7 @@ const rad = (Math.PI / 180)
 function drawPoints () {
   pg.noStroke()
   pg.background(0);
-  
+
   pg.fill(255, 255, 255)
   for (ID in devices) {
     let x, y = 0
@@ -160,6 +176,12 @@ function drawCenters () {
     scale(d.params.scale)
     ellipse(0, 0, 10)
     pop()
+  }
+}
+
+function keyPressed () {
+  if (keyCode === SHIFT) {
+    osc.send(new OSC.Message('/vizion-ok'))
   }
 }
 

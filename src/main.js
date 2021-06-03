@@ -1,15 +1,23 @@
 const { app, BrowserWindow } = require('electron')
 const path = require('path')
 
+const settings = require('./settings')
+
 const OSC = require('osc-js')
 
-const config = {
+// 192.168.2.39
+
+const config = Object.assign({
+  receiver: 'udp',
   udpServer: {
-    host: 'localhost',
-    port: 41234,
-    exclusive: false
+    host: '0.0.0.0',
+    port: 41234
+  },
+  udpClient: {
+    host: '0.0.0.0',
+    port: 41235
   }
-}
+}, settings.oscBridgeConfig)
 const osc = new OSC({ plugin: new OSC.BridgePlugin(config) })
 
 osc.open()

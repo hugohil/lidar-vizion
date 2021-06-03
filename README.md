@@ -8,6 +8,12 @@ merge and process Lidar datas. Intended to work with [ws-lidar](https://github.c
 npm i
 ```
 
+Copy the default settings file and make it fit your needs
+
+```sh
+cp src/settings.default.js src/settings.js
+```
+
 ## Usage
 
 ```sh
