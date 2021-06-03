@@ -90,6 +90,7 @@ function onZoneActivated (zone) {
 let vida = null
 let pg = null
 let appGUI = null
+let zonesGUI = null
 
 const trackParams = {
   track: false,
@@ -116,9 +117,32 @@ function setup() {
   vida.handleActiveZonesFlag = true
   vida.setActiveZonesNormFillThreshold(trackParams.threshold)
 
-  vida.addActiveZone(0, 0, 0, 0.2, 1, onZoneActivatedThrottled) // zone 0 - left
-  vida.addActiveZone(1, 0.8, 0, 0.2, 1, onZoneActivatedThrottled) // zone 1 - center
-  vida.addActiveZone(2, 0, 0, 1, 0.2, onZoneActivatedThrottled) // zone 2 - right
+  for (let i = 0; i < ZONES.length; i++) {
+    const z = ZONES[i]
+    vida.addActiveZone(i, z.x, z.y, z.w, z.h, onZoneActivatedThrottled)
+
+    const params = Object.assign({
+      xMin: 0,
+      xMax: 1,
+      xStep: 0.01,
+      yMin: 0,
+      yMax: 1,
+      yStep: 0.01,
+      wMin: 0,
+      wMax: 1,
+      wStep: 0.01,
+      hMin: 0,
+      hMax: 1,
+      hStep: 0.01,
+    }, z)
+
+    vida.activeZones[i].params = params
+    zgui = createGui('zone-' + i)
+    zgui.addObject(vida.activeZones[i].params)
+    zgui.setPosition(20, (i * 50))
+
+    console.log(vida.activeZones[i])
+  }
 
   appGUI = createGui('track')
   appGUI.addObject(trackParams)
@@ -203,6 +227,12 @@ function draw() {
   for (let i = 0; i < vida.activeZones.length; i++) {
     if (trackParams.track) {
       const az = vida.activeZones[i]
+
+      az.normX = az.params.x
+      az.normY = az.params.y
+      az.normW = az.params.w
+      az.normH = az.params.h
+
       const x = az.normX * width
       const y = az.normY * height
       const w = az.normW * width

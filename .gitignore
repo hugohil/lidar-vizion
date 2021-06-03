@@ -89,3 +89,4 @@ typings/
 out/
 
 **/settings.js
+src/app/zones.js
