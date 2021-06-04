@@ -79,13 +79,9 @@ function onLidarData (data) {
 }
 
 function onZoneActivated (zone) {
-  // console.log(`zone ${zone.id} has ${zone.isMovementDetectedFlag ? '' : 'no more'} movement.`)
-  const event = {
-    type: 'zone-activity',
-    zone
-  }
-  // console.log(event)
-  osc.send(new OSC.Message('/zone-activity', zone.id))
+  console.log(`zone ${zone.id} is ${zone.isMovementDetectedFlag ? 'ON' : 'OFF'}`)
+  const state = Number(zone.isMovementDetectedFlag)
+  osc.send(new OSC.Message('/zone-activity', zone.id, state))
 }
 
 let vida = null
