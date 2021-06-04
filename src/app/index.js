@@ -102,7 +102,7 @@ const trackParams = {
   showCenters: false
 }
 
-const onZoneActivatedThrottled = throttle(onZoneActivated, 2000)
+const onZoneActivatedThrottled = throttle(onZoneActivated, 500)
 
 function setup() {
   createCanvas(windowWidth, windowHeight)
@@ -182,7 +182,7 @@ function drawPoints () {
       y = (distance * sin(radians))
       y = map(y, 0, maxDistance, 0, pg.height)
 
-      pg.ellipse(x, y, 2, 2)
+      pg.ellipse(x, y, 5, 5)
     })
     pg.pop()
   }
@@ -214,6 +214,14 @@ function draw() {
   background(0);
 
   drawPoints()
+
+  if (mouseIsPressed) {
+    pg.noStroke()
+    pg.fill(255, 255, 255)
+    const x = mouseX * lidarImageDownsample
+    const y = mouseY * lidarImageDownsample
+    pg.ellipse(x, y, 25, 25)
+  }
 
   if (trackParams.track) {
     vida.setActiveZonesNormFillThreshold(trackParams.threshold)
