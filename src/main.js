@@ -9,11 +9,11 @@ const OSC = require('osc-js')
 
 const config = Object.assign({
   receiver: 'udp',
-  udpServer: {
+  udpServer: { // where you receive
     host: '0.0.0.0',
     port: 41234
   },
-  udpClient: {
+  udpClient: { // where you send
     host: '0.0.0.0',
     port: 41235
   }
