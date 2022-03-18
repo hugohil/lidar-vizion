@@ -1,26 +1,27 @@
 const { app, BrowserWindow } = require('electron')
 const path = require('path')
 
-const settings = require('./settings')
+const { Server } = require('socket.io');
+
+const io = new Server(3000);
+console.log('socket.io server listening on port 3000');
+
+io.on("connection", (socket) => {
+  const { id } = socket;
+  console.log('socket connected.', id);
+
+  socket.broadcast.emit('register', id);
+
+  socket.on("disconnect", () => {
+    socket.broadcast.emit('unregister', id);
+  });
+
+  socket.on('data', (data) => {
+    socket.broadcast.emit('lidar-data', { id, data });
+  });
+});
 
 const OSC = require('osc-js')
-
-// 192.168.2.39
-
-const config = Object.assign({
-  receiver: 'udp',
-  udpServer: { // where you receive
-    host: '0.0.0.0',
-    port: 41234
-  },
-  udpClient: { // where you send
-    host: '0.0.0.0',
-    port: 41235
-  }
-}, settings.oscBridgeConfig)
-const osc = new OSC({ plugin: new OSC.BridgePlugin(config) })
-
-osc.open()
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) { // eslint-disable-line global-require
@@ -33,7 +34,7 @@ const createWindow = () => {
 
   const mainWindow = new BrowserWindow({
     height,
-    resizable: false,
+    // resizable: false,
     width: (height * ratio)
   })
 

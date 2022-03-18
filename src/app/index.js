@@ -1,3 +1,25 @@
+const socket = io('http://127.0.0.1:3000');
+
+let lidar = {};
+socket.on('register', (id) => {
+  console.log(`register ${id}`);
+  lidar[id] = new Device(id);
+});
+socket.on('unregister', (id) => {
+  console.log(`unregister ${id}`);
+  if (lidar[id]) {
+    lidar[id].close();
+    delete lidar[id];
+  }
+});
+socket.on('lidar-data', ({ id, data }) => {
+  if (!lidar[id]) {
+    console.log(`register ${id}`);
+    lidar[id] = new Device(id);
+  }
+  lidar[id].data = data;
+});
+
 const devices = {}
 
 const throttle = (func, delay) => {
@@ -13,75 +35,62 @@ const throttle = (func, delay) => {
   }
 }
 
-const osc = new OSC()
-
-osc.on('/lidar', (message, rinfo) => {
-  const ID = message.args[0]
-
-  if (!devices[ID]) {
-    onLidarRegister(ID)
-  }
-  onLidarData(message)
-})
-
 const lidarImageDownsample = 0.5
 const rescaleFactor = (1 / lidarImageDownsample)
 
-function onLidarRegister (ID) {
-  let memory = localStorage.getItem(ID)
-  if (memory) {
-    memory = JSON.parse(memory)
+const pane = new Tweakpane.Pane({ title: 'opts' });
+
+let preset = localStorage.getItem('preset');
+try {
+  pane.importPreset(JSON.parse(preset));
+} catch (ignore) {}
+const saveButton = pane.addButton({ title: 'Save'}).on('click', () => {
+  preset = pane.exportPreset();
+  localStorage.setItem('preset', JSON.stringify(preset));
+});
+
+class Device {
+  constructor (id) {
+    this.data = [];
+
+    this.params = {
+      offsetX: 0,
+      offsetY: 0,
+      scale: 10,
+      rotation: 0
+    }
+
+    this.gui = pane.addFolder({ title: `device ${id}` });
+    this.gui.addInput(this.params, 'offsetX', {
+      min: -(canvas.width / 2),
+      max: (canvas.width / 2),
+      presetKey: `offsetX-${id}`
+    });
+    this.gui.addInput(this.params, 'offsetY', {
+      min: -(canvas.height / 2),
+      max: (canvas.height / 2),
+      presetKey: `offsetY-${id}`
+    });
+    this.gui.addInput(this.params, 'scale', {
+      min: 1,
+      max: 30,
+      presetKey: `scale-${id}`
+    });
+    this.gui.addInput(this.params, 'rotation', {
+      min: -360,
+      max: 360,
+      presetKey: `rotation-${id}`
+    });
   }
 
-  console.log('lidar registered with ID', ID)
-  devices[ID] = Object.assign({}, {
-    gui: createGui(ID),
-    params: {
-      offsetX: memory ? memory.offsetX : 0,
-      offsetXMin: -(windowWidth * lidarImageDownsample),
-      offsetXMax: (windowWidth * lidarImageDownsample),
-      offsetY: memory ? memory.offsetY : 0,
-      offsetYMin: -(windowHeight * lidarImageDownsample),
-      offsetYMax: (windowHeight * lidarImageDownsample),
-      scale: memory ? memory.scale : 1,
-      scaleStep: 0.01,
-      scaleMin: 0.01,
-      scaleMax: 3,
-      angle: memory ? memory.angle : 0,
-      angleMin: -360,
-      angleMax: 360,
-      color: [255, 255, 255]
-    },
-    distances: new Array(360)
-  })
-
-  devices[ID].gui.addObject(devices[ID].params)
-  devices[ID].gui.addButton('save', () => {
-    localStorage.setItem(ID, JSON.stringify({
-      offsetX: devices[ID].params.offsetX,
-      offsetY: devices[ID].params.offsetY,
-      scale: devices[ID].params.scale,
-      angle: devices[ID].params.angle
-    }))
-  })
-
-  const guiOffsetY = 90 * (Object.keys(devices).length + 1)
-  const guiOffsetX = 20 * Object.keys(devices).length
-  devices[ID].gui.setPosition(guiOffsetX, guiOffsetY)
-}
-
-function onLidarData (data) {
-  const ID = data.args.shift()
-  for (let i = 1; i < data.args.length; i += 2) {
-    const angle = data.args[i]
-    devices[ID].distances[Math.floor(angle)] = [data.args[(i - 1)], angle]
+  close () {
+    this.gui.dispose();
   }
 }
 
 function onZoneActivated (zone) {
   console.log(`zone ${zone.id} is ${zone.isMovementDetectedFlag ? 'ON' : 'OFF'}`)
   const state = Number(zone.isMovementDetectedFlag)
-  osc.send(new OSC.Message('/zone-activity', zone.id, state))
 }
 
 let vida = null
@@ -143,57 +152,52 @@ function setup() {
 
   appGUI = createGui('track')
   appGUI.addObject(trackParams)
-
-  osc.open()
 }
 
-let maxDistance = 5000
 const rad = (Math.PI / 180)
 
+function d2r (deg) {
+  return deg * rad;
+}
+
 function drawPoints () {
-  pg.noStroke()
+  pg.noStroke();
   pg.background(0);
+  // pg.fill(255, 255, 255);
 
-  pg.fill(255, 255, 255)
-  for (ID in devices) {
-    let x, y = 0
+  for (const id in lidar) {
+    pg.push();
+    pg.fill(255, 0, 0);
 
-    const d = devices[ID]
+    pg.translate(
+      (canvas.width / 2) + lidar[id].params.offsetX,
+      (canvas.height / 2) + lidar[id].params.offsetY
+    );
+    pg.rotate(d2r(lidar[id].params.rotation));
 
-    pg.push()
-    pg.fill(d.params.color)
-    const offsetX = (d.params.offsetX + (pg.width * 0.5))
-    const offsetY = (d.params.offsetY + (pg.height * 0.5))
-    pg.translate(offsetX, offsetY)
-    pg.rotate(d.params.angle * rad)
-    pg.scale(d.params.scale)
-    
-    d.distances.forEach(([distance, angle], index) => {
-      radians = (angle * rad)
-      maxDistance = Math.max(distance, maxDistance)
+    for (let i = (lidar[id].data.length - 1); i > 0 ; i--) {
+      let { x, y } = lidar[id].data[i];
+      x /= lidar[id].params.scale;
+      y /= lidar[id].params.scale;
 
-      x = (distance * cos(radians))
-      x = map(x, 0, maxDistance, 0, pg.width)
+      // console.log(x, y);
 
-      y = (distance * sin(radians))
-      y = map(y, 0, maxDistance, 0, pg.height)
-
-      pg.ellipse(x, y, 5, 5)
-    })
-    pg.pop()
+      pg.ellipse(x, y, 5, 5);
+    }
+    pg.pop();
   }
 }
 
 function drawCenters () {
   fill(255, 0, 0)
-  for (ID in devices) {
-    const d = devices[ID]
+  for (ID in lidar) {
+    const d = lidar[id]
 
     push()
     const offsetX = ((d.params.offsetX * rescaleFactor) + (width * 0.5))
     const offsetY = ((d.params.offsetY * rescaleFactor) + (height * 0.5))
     translate(offsetX, offsetY)
-    rotate(d.params.angle * rad)
+    rotate(d2r(d.params.rotation))
     scale(d.params.scale)
     ellipse(0, 0, 10)
     pop()
@@ -202,7 +206,6 @@ function drawCenters () {
 
 function keyPressed () {
   if (keyCode === SHIFT) {
-    osc.send(new OSC.Message('/vizion-ok'))
   }
 }
 
@@ -258,5 +261,5 @@ function draw() {
 
   noStroke()
   fill(0, 255, 0)
-  text(`${getFrameRate().toFixed(2)} FPS`, (width - 70), 25)
+  text(`${getFrameRate().toFixed(2)} FPS`, (width - 400), 25)
 }
